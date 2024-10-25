@@ -1,51 +1,114 @@
 <template>
   <div class="container">
-    <img src="../assets/img/takelogo.png" alt="Logo de la Empresa" class="logo" /> <!-- Imagen añadida -->
+    <img src="../assets/img/takelogo.png" alt="Logo de la Empresa" class="logo" />
     <h1>Iniciar Sesión</h1>
     <form @submit.prevent="login">
       <div class="form-group">
         <label for="email">Correo Electrónico:</label>
         <input type="email" v-model="email" id="email" required />
+        <span v-if="emailError" class="error">{{ emailError }}</span>
       </div>
       <div class="form-group">
         <label for="password">Contraseña:</label>
         <input type="password" v-model="password" id="password" required />
+        <span v-if="passwordError" class="error">{{ passwordError }}</span>
       </div>
-      <button type="submit" class="primary-button">Iniciar Sesión</button>
+      <button type="submit" class="primary-button" :disabled="loading">{{ loading ? 'Cargando...' : 'Iniciar Sesión' }}</button>
     </form>
     <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+    <p v-if="successMessage" class="success">{{ successMessage }}</p>
     <p>¿No tienes una cuenta? <router-link to="/registro" class="link">Regístrate aquí</router-link></p>
   </div>
 </template>
 
 <script>
 export default {
-  name: 'IniciarSesion',
+  name: 'InicioSesion',
   data() {
     return {
       email: '',
       password: '',
       errorMessage: '',
+      successMessage: '',
+      loading: false,
+      emailError: '',
+      passwordError: '',
     };
   },
   methods: {
-    login() {
-      const users = JSON.parse(localStorage.getItem('users')) || []; // Obtener usuarios de localStorage
+    validateInput() {
+      this.emailError = '';
+      this.passwordError = '';
 
-      // Buscar el usuario por correo y contraseña
-      const user = users.find(user => user.email === this.email && user.password === this.password);
-
-      if (user) {
-        // Almacena el objeto del usuario actual en localStorage
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        this.$router.push({ name: 'MenuPrincipal' }); // Redirige al menú principal
-      } else {
-        this.errorMessage = 'Correo electrónico o contraseña incorrectos.';
+      // Validar el correo electrónico
+      if (!this.email) {
+        this.emailError = 'El correo electrónico es obligatorio.';
+      } else if (!this.validateEmail(this.email)) {
+        this.emailError = 'El formato del correo electrónico es inválido.';
       }
+
+      // Validar la contraseña
+      if (!this.password) {
+        this.passwordError = 'La contraseña es obligatoria.';
+      }
+
+      return !this.emailError && !this.passwordError; // Retorna verdadero si no hay errores
+    },
+
+    async login() {
+      this.errorMessage = ''; // Resetear mensaje de error
+      this.successMessage = ''; // Resetear mensaje de éxito
+      this.loading = true; // Activar estado de carga
+
+      if (!this.validateInput()) {
+        this.loading = false; // Desactivar carga si hay errores
+        return;
+      }
+
+      try {
+        const response = await fetch('http://localhost:5000/api/login', { 
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            correo: this.email,
+            contrasena: this.password,
+          }),
+        });
+
+        // Manejar la respuesta
+        if (!response.ok) {
+          const errorData = await response.json();
+          this.errorMessage = errorData.message || 'Hubo un problema con el inicio de sesión.';
+          this.loading = false; // Desactivar carga
+          return;
+        }
+
+        const user = await response.json(); // Suponiendo que el backend devuelve el usuario
+        localStorage.setItem('currentUser', JSON.stringify(user)); // Almacena el usuario en localStorage
+        this.successMessage = 'Inicio de sesión exitoso. Redirigiendo...';
+        setTimeout(() => {
+          this.$router.push({ name: 'MenuPrincipal' }); // Redirige al menú principal
+        }, 1000); // Añadir un pequeño retraso para que el mensaje de éxito sea visible
+
+      } catch (error) {
+        this.errorMessage = 'Error en la conexión con el servidor: ' + error.message;
+      } finally {
+        this.loading = false; // Asegurarse de desactivar carga en cualquier caso
+      }
+    },
+
+    validateEmail(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
+      return re.test(email);
     },
   },
 };
 </script>
+
+
+
 
 <style scoped>
 .container {
@@ -60,9 +123,9 @@ export default {
 }
 
 .logo {
-  width: 100%; /* Ajusta el tamaño de la imagen */
-  max-width: 200px; /* Ancho máximo para la imagen */
-  margin-bottom: 20px; /* Espacio debajo de la imagen */
+  width: 100%; 
+  max-width: 200px; 
+  margin-bottom: 20px;
 }
 
 h1 {
@@ -72,34 +135,34 @@ h1 {
 
 .form-group {
   margin-bottom: 15px;
-  text-align: left; /* Alinear etiquetas a la izquierda */
+  text-align: left;
 }
 
 label {
-  color: #333; /* Color de texto */
+  color: #333;
 }
 
 input {
   width: 100%;
   padding: 8px;
-  border: 1px solid #007bff; /* Borde azul */
+  border: 1px solid #007bff; 
   border-radius: 4px;
-  margin-top: 5px; /* Espacio entre la etiqueta y el input */
+  margin-top: 5px;
 }
 
 .primary-button {
-  background-color: #007bff; /* Azul */
+  background-color: #007bff; 
   color: white;
   border: none;
   padding: 10px 15px;
   border-radius: 5px;
   cursor: pointer;
   transition: background-color 0.3s;
-  margin-top: 10px; /* Espacio antes del botón */
+  margin-top: 10px; 
 }
 
 .primary-button:hover {
-  background-color: #0056b3; /* Azul más oscuro */
+  background-color: #0056b3; 
 }
 
 .error {
@@ -109,11 +172,11 @@ input {
 }
 
 .link {
-  color: #007bff; /* Color azul para el enlace */
-  text-decoration: none; /* Sin subrayado */
+  color: #007bff; 
+  text-decoration: none;
 }
 
 .link:hover {
-  text-decoration: underline; /* Subrayar al pasar el mouse */
+  text-decoration: underline; 
 }
 </style>
