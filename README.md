@@ -1,3 +1,3 @@
 # TakeMyCar
 
-https://lambent-custard-8a1928.netlify.app/
+https://snazzy-mooncake-161ed9.netlify.app
