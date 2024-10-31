@@ -1,219 +1,154 @@
 <template>
-  <div class="galeria-alquileres">
-    <h2>Galería de Autos Disponibles</h2>
-    <div class="action-buttons">
-      <button @click="goToMenu" class="volver-btn">
-        <i class="fas fa-arrow-left"></i> Volver al Menú Principal
-      </button>
-      <button @click="updateCars" class="actualizar-btn">
-        <i class="fas fa-sync-alt"></i> Actualizar Autos
-      </button>
-    </div>
-    <div class="autos-list">
-      <div v-if="availableCars.length === 0" class="no-autos">
-        <p>No hay autos disponibles en este momento.</p>
-      </div>
-      <div class="auto" v-for="(car, index) in availableCars" :key="index">
-        <img :src="getValidImage(car.image)" :alt="car.model" class="auto-image" @error="handleImageError" />
-        <div class="auto-details">
-          <h3>{{ car.model }}</h3>
-          <p><strong>Precio por día:</strong> ${{ car.price }}</p>
-          <button @click="goToPaymentMethods(car)" class="reservar-btn">
-            Reservar
-          </button>
-        </div>
+  <div class="container">
+    <img src="../assets/img/takelogo.png" alt="Logo de la Empresa" class="logo" />
+    <h1>Galería de Autos para Alquiler</h1>
+    <!-- Mensaje si no hay autos disponibles -->
+    <div v-if="cars.length === 0">No hay autos disponibles para alquiler.</div>
+    <div class="gallery" v-else>
+      <div class="car-card" v-for="car in cars" :key="car.id">
+        <img :src="car.url" alt="Imagen del auto" class="car-image" />
+        <h2 class="car-name">{{ car.name }}</h2>
+        <p class="car-price">Precio por Día: S/{{ car.price }}</p>
+        <!-- Botón Alquilar -->
+        <button class="rent-button" @click="alquilarAuto(car)">Alquilar</button>
       </div>
     </div>
+    <!-- Botón para volver al menú principal -->
+    <button class="back-button" @click="goToMainMenu">Volver al Menú Principal</button>
   </div>
 </template>
 
 <script>
-import { eventBus } from '../eventBus'; // Ajusta la ruta según tu estructura
+import axios from 'axios';
 
 export default {
   name: 'GaleriaAlquileres',
   data() {
     return {
-      rentals: this.getRentals(),
-      defaultImage: 'https://via.placeholder.com/150', // URL de la imagen por defecto
+      cars: [], // Autos disponibles para alquiler
     };
   },
-  computed: {
-    availableCars() {
-      const cars = this.getCars();
-      const rentedModels = this.rentals.map((rental) => rental.carModel);
-      return cars.filter((car) => !rentedModels.includes(car.model));
-    },
+  async created() {
+    await this.fetchAvailableCars();
   },
   methods: {
-    getRentals() {
+    // Cargar autos disponibles desde la base de datos
+    async fetchAvailableCars() {
       try {
-        return JSON.parse(localStorage.getItem('rentals')) || [];
+        const response = await axios.get('http://localhost:3000/api/rentals');
+        this.cars = response.data;
       } catch (error) {
-        console.error('Error al obtener rentals:', error);
-        return [];
+        console.error('Error al obtener autos disponibles:', error);
       }
     },
-    getCars() {
+    // Función para alquilar un auto
+    async alquilarAuto(car) {
       try {
-        return JSON.parse(localStorage.getItem('cars')) || [];
+        await axios.post('http://localhost:3000/api/rentals/checkout', {
+          name: car.name,
+          price: car.price,
+          url: car.url,
+        });
+
+        // Filtrar el auto alquilado de la lista local
+        this.cars = this.cars.filter((c) => c.id !== car.id);
+
+        alert('Alquiler registrado exitosamente.');
       } catch (error) {
-        console.error('Error al obtener cars:', error);
-        return [];
+        console.error('Error al alquilar el auto:', error);
+        alert('Hubo un problema al alquilar el auto.');
       }
     },
-    getValidImage(imageUrl) {
-      return imageUrl && this.isValidUrl(imageUrl) ? imageUrl : this.defaultImage;
-    },
-    isValidUrl(url) {
-      return url.startsWith('http') || url.startsWith('https');
-    },
-    goToPaymentMethods(car) {
-      localStorage.setItem('reservationDetails', JSON.stringify({
-        carModel: car.model,
-        totalPrice: car.price,
-        days: 1,
-        imageUrl: car.image
-      }));
-      this.$router.push({ name: 'MetodosPago' });
-    },
-    goToMenu() {
+    goToMainMenu() {
+      // Redirigir al menú principal
       this.$router.push({ name: 'MenuPrincipal' });
     },
-    updateCars() {
-      this.rentals = this.getRentals(); // Actualiza la lista de rentals
-      this.$forceUpdate(); // Fuerza la actualización del componente
-      alert('Autos actualizados.');
-    },
-    handleImageError(event) {
-      console.log('Error al cargar la imagen:', event.target.src); // Para depurar
-      event.target.src = this.defaultImage; // Cambia a una imagen de respaldo
-    },
-  },
-  created() {
-    eventBus.on('carReturned', this.returnCarToGallery);
-  },
-  beforeUnmount() {
-    eventBus.off('carReturned', this.returnCarToGallery);
   },
 };
 </script>
 
 <style scoped>
-.galeria-alquileres {
-  padding: 40px 20px;
-  background-color: #f9f9f9;
-  border-radius: 10px;
-  max-width: 1200px;
-  margin: 0 auto;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-h2 {
-  text-align: center;
-  color: #007bff;
-  margin-bottom: 30px;
-  font-size: 28px;
-}
-
-.action-buttons {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 40px;
-}
-
-.volver-btn, .actualizar-btn {
-  background-color: #ffffff;
-  color: #007bff;
-  border: 2px solid #007bff;
-  padding: 12px 25px;
-  border-radius: 50px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 16px;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.volver-btn i, .actualizar-btn i {
-  font-size: 18px;
-}
-
-.volver-btn:hover, .actualizar-btn:hover {
-  background-color: #007bff;
-  color: white;
-  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
-  transform: translateY(-2px);
-}
-
-.autos-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 30px;
-}
-
-.auto {
-  background-color: #ffffff;
-  border: 1px solid #ddd;
-  border-radius: 12px;
+.container {
+  max-width: 800px;
+  margin: 50px auto;
   padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s;
-}
-
-.auto:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.auto-image {
-  width: 100%;
-  max-height: 180px;
-  object-fit: cover;
+  border: 1px solid #ccc;
   border-radius: 8px;
-}
-
-.auto-details {
-  margin-top: 15px;
+  background-color: #f9f9f9;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   text-align: center;
 }
 
-.auto-details h3 {
-  margin-bottom: 10px;
-  font-size: 20px;
+.logo {
+  width: 100%;
+  max-width: 200px;
+  margin-bottom: 20px;
+}
+
+.back-button {
+  background-color: #007bff; 
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 20px;
+}
+
+.back-button:hover {
+  background-color: #0056b3; 
+}
+
+h1 {
+  color: #007bff;
+  margin-bottom: 20px;
+}
+
+.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.car-card {
+  border: 1px solid #007bff;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 10px;
+  width: 200px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  background-color: #fff;
+}
+
+.car-image {
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.car-name {
+  color: #007bff;
+  margin: 10px 0;
+}
+
+.car-price {
   color: #333;
 }
 
-.auto-details p {
-  margin-bottom: 15px;
-  font-size: 16px;
-  color: #555;
-}
-
-.reservar-btn {
-  background-color: #28a745;
+.rent-button {
+  background-color: #007bff;
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 10px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 16px;
   transition: background-color 0.3s;
+  font-size: 16px;
+  margin-top: 10px;
 }
 
-.reservar-btn:hover {
-  background-color: #218838;
-}
-
-.no-autos {
-  text-align: center;
-  font-style: italic;
-  color: #777;
+.rent-button:hover {
+  background-color: #0056b3;
 }
 </style>
